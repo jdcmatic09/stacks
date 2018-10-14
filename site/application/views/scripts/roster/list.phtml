@@ -1,0 +1,146 @@
+<?php $requestBearer = "Bearer XXXSTACKSPORTSXXX"; ?>
+<script type="text/javascript">
+function submitData() {
+	$('#playertable').on('click', 'a', function(e) {
+    	var restUrl = '';
+    	var restMethod = '';
+		var actionData = $(this).attr('data').split('-');
+			
+		if (actionData.length > 1 && !$.isNumeric(actionData[1]))
+			return;
+		
+    	var formData = {
+				requestMethod: actionData[0],
+				requestId:  actionData[1] 
+		};
+
+    	$('#player-error-msg').html(''); 
+		if (actionData[0] == 'edit') {
+			restUrl = '/player/edit';
+			restMethod = 'PUT';
+
+			if ($('#player-fn-td-' + actionData[1]).html().trim().length == 0) {
+				$('#player-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>Enter a value for First Name</div>');
+				return;
+			}
+			if ($('#player-ln-td-' + actionData[1]).html().trim().length == 0) {
+				$('#player-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>Enter a value for Last Name</div>');
+				return;
+			}
+			if ($('#player-rt-td-' + actionData[1]).html().trim().length > 0 && !$.isNumeric($('#player-rt-td-' + actionData[1]).html()))  {
+				$('#player-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>Enter a numeric value for Rating</div>');
+				return;
+			} 
+			formData.firstName = $('#player-fn-td-' + actionData[1]).html();
+			formData.lastName = $('#player-ln-td-' + actionData[1]).html();
+			formData.rating = $('#player-rt-td-' + actionData[1]).html().trim();
+
+			if (formData.rating && (formData.rating <= 0 || formData.rating > 4)) {
+				$('#player-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>Accepted Rating value is from 1 to 4</div>');
+				return;
+			}	
+		}
+
+		if (!restUrl)
+			return;
+			
+		$.ajax({	
+			url : restUrl,
+			type: restMethod,
+			data : JSON.stringify(formData),
+			beforeSend: function (xhr) {
+				xhr.setRequestHeader("Authorization", "<?php echo $requestBearer; ?>");
+			}, 
+			success: function(data, textStatus, jqXHR)
+			{	
+				$('#player-error-msg').html('');	
+				if (data.error.length > 0 ) {
+					$('#team-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>' + data.error + '</div>');
+				} else {
+					alert('Record has been updated!');
+				}
+			},
+			error: function (jqXHR, textStatus, errorThrown)
+			{
+				alert('ERROR: Unable to process the request' +errorThrown);
+			}
+		})
+    	
+	})
+}
+
+function initEditTableWidget() {
+	$('#playertable').editableTableWidget();
+
+	$('#playertable td.uneditable').on('change', function(evt, newValue) {
+		return false;
+	});
+
+	$('#playertable td').on('change', function(evt, newValue) {
+    	if ($(this).attr('class') != 'uneditable') {
+        	return true;
+    	}
+	});
+
+}
+
+$(document).ready(function() {
+	initEditTableWidget(),
+	submitData(),
+	initTableSort()		
+})
+</script>
+
+
+<?php
+    $this->title = $this->escape($this->team->name) . ' Roster';
+    $this->headTitle($this->title);
+?>
+
+<table id="tblError">
+	<tr>
+		<td id="player-error-msg" class="td-error" align="left"></td>
+	</tr>
+</table>
+
+<h1><a href="<?php echo $this->url(array(),'home');?>"><< Teams</a></h1>
+<table id="playertable" class="pure-table pure-table-bordered">
+<tr>
+ <th width="1%">Starter</th>	
+ <th width="4%">Player Id</th>
+ <th width="25%">First Name</th>
+ <th width="25%">Last Name</th>
+ <th width="6%">Rating (1-4)</th>
+ <th width="3%">Update</th>
+ <th width="5%">Speed</th>
+ <th width="5%">Strength</th>
+ <th width="5%">Agility</th>
+ <th width="10%">Total Attribute Score</th>
+</tr>
+<?php foreach($this->roster as $player) : ?>
+<tr id="<?php echo 'tr-row-' . $this->escape($player->id); ?>">
+	<td class="uneditable">
+		<?php if ($this->escape($player->starter) == 'Y') { ?>
+ 		&nbsp;&nbsp;
+ 		<a href="#">
+          <span class="glyphicon glyphicon-ok"></span>
+        </a>
+        <?php } ?>
+    </td>  
+	<td class="uneditable" id="<?php echo 'player-id-td-'.$this->escape($player->id); ?>"><?php echo $this->escape($player->playerid);?></td>
+	<td id="<?php echo 'player-fn-td-'.$this->escape($player->id); ?>"><?php echo $this->escape($player->firstname);?></td>
+	<td id="<?php echo 'player-ln-td-'.$this->escape($player->id); ?>"><?php echo $this->escape($player->lastname);?></td>
+	<td id="<?php echo 'player-rt-td-'.$this->escape($player->id); ?>"><?php echo $this->escape($player->rating);?></td>
+	<td class="uneditable">
+ 		&nbsp;
+ 		<a id ="trg-edit-<?php echo $this->escape($player->id); ?>" href="#" data="<?php echo 'edit-'.$this->escape($player->id); ?>">
+          <span class="glyphicon glyphicon-edit"></span>
+        </a>
+ 	</td>
+	<td class="uneditable" id="<?php echo 'player-sp-td-'.$this->escape($player->id); ?>"><?php echo $this->escape($player->speed);?></td>
+	<td class="uneditable" id="<?php echo 'player-st-td-'.$this->escape($player->id); ?>"><?php echo $this->escape($player->strength);?></td>
+	<td class="uneditable" id="<?php echo 'player-ag-td-'.$this->escape($player->id); ?>"><?php echo $this->escape($player->agility);?></td>
+	<td class="uneditable" id="<?php echo 'player-tot-td-'.$this->escape($player->id); ?>"><?php echo $this->escape($player->totalatrscr);?></td>
+</tr>
+<?php endforeach; ?>
+</table>

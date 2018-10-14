@@ -1,0 +1,231 @@
+<?php $requestBearer = "Bearer XXXSTACKSPORTSXXX"; ?>
+<script type="text/javascript">
+
+function appendRow() {
+	$('#add').on('click', function(e) {
+    	// do nothing if there's a pending new row
+		if (typeof $('#new-0').html() != 'undefined') 
+    		return;
+		
+			// clone last row and use the cloned row to in
+			$('#teamtable tr:last').clone(true).insertAfter('#teamtable tr:last');
+			$('#teamtable tr:last').html(
+	    			'<td id="new-0" tabindex="1">Create New Record</td>' +
+	    			'<td class="uneditable">' +
+	    			'&nbsp;&nbsp;&nbsp;&nbsp; 		<a id="trg-list-new" href="#"></a>' +
+	    	 		'</td>' +
+	    	 		'<td class="uneditable">' + 
+	    	 		'&nbsp;&nbsp;&nbsp;&nbsp; 		<a id="trg-edit-new" href="#"></a>' +
+	    	 		'</td>' +
+	    	 		'<td class="uneditable">' +
+	    	 		'&nbsp;&nbsp;&nbsp;&nbsp; 		<a id="trg-delete-new" href="#"></a>' +
+	    	 		'</td>'
+	    	);
+			$('#teamtable tr:last td').focus();
+		}
+	);	
+}
+
+function submitAddData() {
+	$('#insert').on('click', function(e) {
+    		if (typeof $('#new-0').html() != 'undefined') {
+    			var teamNameVal = $('#new-0').html();
+    			if (teamNameVal.trim().length > 0) {
+    				var formData = {
+    						requestMethod: 'add',
+    						requestId:  0,
+    						teamName:  teamNameVal
+    				};
+    				
+    				$.ajax({	
+    					url : '/team/add',
+    					type: 'POST',
+    					data : JSON.stringify(formData),
+    					//headers: {'Authorization': 'Bearer t-7614f875-8423-4f20-a674-d7cf3096290e'},
+    					beforeSend: function (xhr) {
+    						xhr.setRequestHeader("Authorization", "<?php echo $requestBearer; ?>");
+    					}, 
+    					success: function(data, textStatus, jqXHR)
+    					{	
+    						$('#team-error-msg').html('');	
+    						if (data.error.length > 0 ) {
+    							$('#team-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>' + data.error + '</div>');
+    						} else {
+    							if (data.newid > 0) {
+    								//change the some attributes to attach the generated id to the row elements
+    								$('#new-0').attr('id', 'team-td-' + data.newid);
+    
+    								$('#trg-list-new').html('<span class="glyphicon glyphicon-th-list"></span>');
+    								$('#trg-list-new').attr('href', '/teamroster/' +data.newid);
+    								$('#trg-list-new').attr('data', 'list-' + data.newid);
+    								$('#trg-list-new').attr('id', 'trg-list-'+ data.newid);
+    																	
+    								$('#trg-edit-new').html('<span class="glyphicon glyphicon-edit"></span>');
+    								$('#trg-edit-new').attr('data', 'edit-' + data.newid);
+    								$('#trg-edit-new').attr('id', 'trg-edit-'+ data.newid);
+    
+    								$('#trg-delete-new').html('<span class="glyphicon glyphicon-trash"></span>');
+    								$('#trg-delete-new').attr('data', 'delete-' + data.newid);
+    								$('#trg-delete-new').attr('id', 'trg-delete')
+    								alert('Record has been created!');
+    							}
+    						} 
+    					},
+    					error: function (jqXHR, textStatus, errorThrown)
+    					{
+    						alert('ERROR: Unable to process the request' +errorThrown);
+    					}
+    				})
+    			} else {
+    				$('#team-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>Enter a value for Team Name</div>');
+    			}	
+        	}		
+    	}
+    );
+	
+}
+
+function initTableEdit() {
+	$('#teamtable').editableTableWidget();
+
+	$('#teamtable td.uneditable').on('change', function(evt, newValue) {
+		return false;
+	});
+
+	$('#teamtable td').on('change', function(evt, newValue) {
+		if ($(this).attr('class') != 'uneditable') {
+			return true;
+		}
+	});
+	
+}
+
+function submitEditDelete() {
+
+	$('#teamtable').on('click', 'a', function(e) {
+    	var restUrl = '';
+    	var restMethod = '';
+		var actionData = $(this).attr('data').split('-');
+			
+		if (actionData.length > 1 && !$.isNumeric(actionData[1]))
+			return;
+		
+    	var formData = {
+				requestMethod: actionData[0],
+				requestId:  actionData[1] 
+		};
+		 
+		if (actionData[0] == 'edit') {
+			restUrl = '/team/edit';
+			restMethod = 'PUT';
+
+			if ($('#team-td-' + actionData[1]).html().trim().length == 0) {
+				$('#team-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>Enter a value for Team Name</div>');
+				return;
+			}
+			formData.teamName = $('#team-td-' + actionData[1]).html();
+		}
+		 
+		if (actionData[0] == 'delete') {
+			restUrl = '/team/delete';
+        	restMethod = 'DELETE';
+		}
+
+		if (!restUrl)
+			return;
+			
+		$.ajax({	
+			url : restUrl,
+			type: restMethod,
+			data : JSON.stringify(formData),
+			beforeSend: function (xhr) {
+				xhr.setRequestHeader("Authorization", "<?php echo $requestBearer; ?>");
+			}, 
+			success: function(data, textStatus, jqXHR)
+			{	
+				$('#team-error-msg').html('');	
+				if (data.error.length > 0 ) {
+					$('#team-error-msg').html('<div class="alert alert-danger" role="alert"><span class="sr-only">Error:</span>' + data.error + '</div>');
+				} else {
+					if (restMethod == 'DELETE' && data.success == 1) {
+						// remove row
+						$('#tr-row-' + actionData[1]).remove();
+					}
+					if (restMethod == 'PUT' && data.success == 1) {
+						alert('Record has been updated!');	
+					}
+				} 
+			},
+			error: function (jqXHR, textStatus, errorThrown)
+			{
+				alert('ERROR: Unable to process the request' +errorThrown);
+			}
+		})
+	
+    	
+	});
+
+}
+
+$(document).ready(function() {
+
+    	appendRow(),
+		submitAddData(),    	
+		initTableEdit(),
+		submitEditDelete(),
+		initTableSort()    	
+})
+
+</script>
+        
+<?php
+    $this->title = "Teams";
+    $this->headTitle($this->title);
+    $form = $this->form;
+?>
+<div style="height:50px;">
+<table id="tblForm">
+	<tr>
+		<tbody>
+			<form id="frmTeam" name="frmTeam" enctype="application/x-www-form-urlencoded" action="" method="post">
+    			<?php echo $form->add->renderViewHelper(); ?>
+    			&nbsp;
+    			<?php echo $form->insert->renderViewHelper(); ?>
+    		</form>
+    	</tbody>
+    </tr>
+</table>
+</div>
+<table id="tblError">
+	<tr>
+		<td id="team-error-msg" class="td-error" align="left"></td>
+	</tr>
+</table>
+<table id="teamtable" class="pure-table pure-table-bordered">
+<tr>
+ <th width="60%">Team Name</th>
+ <th width="3%">Roster</th>
+ <th width="3%">Update</th>
+ <th width="3%">Delete</th>
+</tr>
+<?php foreach($this->teams as $team) : ?>
+<tr id="<?php echo 'tr-row-' . $this->escape($team->id); ?>">
+ 	<td id="<?php echo 'team-td-'.$this->escape($team->id); ?>"><?php echo $this->escape($team->name);?></td>
+	<td class="uneditable">&nbsp;&nbsp;&nbsp;&nbsp;
+ 		<a id ="trg-list-<?php echo $this->escape($team->id); ?>" href="<?php echo $this->url(array('id'=>$team->id), 'teamRoster'); ?>" data="<?php echo 'list-'.$this->escape($team->id); ?>">
+        	<span class="glyphicon glyphicon-th-list"></span>
+        </a>
+    </td>
+    <td class="uneditable">&nbsp;&nbsp;&nbsp;&nbsp;      
+ 		<a id ="trg-edit-<?php echo $this->escape($team->id); ?>" href="#" data="<?php echo 'edit-'.$this->escape($team->id); ?>">
+          <span class="glyphicon glyphicon-edit"></span>
+        </a>
+    </td>
+    <td class="uneditable">&nbsp;&nbsp;&nbsp;&nbsp;    
+ 		<a id ="trg-delete-<?php echo $this->escape($team->id); ?>" href="#" data="<?php echo 'delete-'.$this->escape($team->id); ?>">
+          <span class="glyphicon glyphicon-trash"></span>
+        </a>
+    </td>
+</tr>
+<?php endforeach; ?>
+</table>
